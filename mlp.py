@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import pandas as pd
 
 #
 # Shorthand:
@@ -7,15 +8,14 @@ import numpy as np
 #   "d_" as a variable prefix means "derivative"
 #   "_wrt_" is shorthand for "with respect to"
 #   "w_ho" and "w_ih" are the index of weights from hidden to output layer neurons and input to hidden layer neurons respectively
+#   "hi" and "oh" are the shorthand for hidden to input and output to hidden
 #
 # Comment references:
 #
 # [1] Wikipedia article on Backpropagation
 #   http://en.wikipedia.org/wiki/Backpropagation#Finding_the_derivative_of_the_error
-# [2] Neural Networks for Machine Learning course on Coursera by Geoffrey Hinton
-#   https://class.coursera.org/neuralnets-2012-001/lecture/39
-# [3] The Back Propagation Algorithm
-#   https://www4.rgu.ac.uk/files/chapter3%20-%20bp.pdf
+# [2] Step by step Backpropagation Example
+#   https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
 
 class NeuralNetwork:
     #LEARNING_RATE = 0.5
@@ -42,7 +42,7 @@ class NeuralNetwork:
         weight_num = 0
         for h in range(len(self.hidden_layer[0].neurons)):
             for i in range(self.num_inputs):
-                if not hidden_layer_weights:
+                if hidden_layer_weights[weight_num] == 0:
                     self.hidden_layer[0].neurons[h].weights.append(random.random())
                 else:
                     self.hidden_layer[0].neurons[h].weights.append(hidden_layer_weights[weight_num])
@@ -235,6 +235,19 @@ class NeuralNetwork:
                 total_error += self.output_layer.neurons[o].calculate_error(training_outputs[o])
         return total_error
 
+    def test(self, test_inputs, test_outputs):
+        self.feed_forward(test_inputs, self.choice_act)
+
+        pd_errors_wrt_output_neuron_total_net_input = [0] * len(self.output_layer.neurons)
+        for o in range(len(self.output_layer.neurons)):
+
+            # ∂E/∂zⱼ
+            pd_errors_wrt_output_neuron_total_net_input[o] = self.output_layer.neurons[o].calculate_pd_error_wrt_total_net_input(test_outputs[o])
+
+        return pd_errors_wrt_output_neuron_total_net_input.index(min(pd_errors_wrt_output_neuron_total_net_input))
+
+
+
 class NeuronLayer:
     def __init__(self, num_neurons, bias):
 
@@ -294,14 +307,6 @@ class Neuron:
                 return total_net_input
             else:
                 return 0
-            """
-            for i in range(0, len(total_net_input)):
-                for j in range(0, len(total_net_input[i])):
-                    if total_net_input[i][j] > 0:
-                        pass
-                    else:
-                        total_net_input[i[j]] = 0
-            return total_net_input"""
 
     # Determine how much the neuron's total input has to change to move closer to the expected output
     #
@@ -357,20 +362,52 @@ class Neuron:
     def calculate_pd_total_net_input_wrt_weight(self, index):
         return self.inputs[index]
 
-###
+### Trial Values ###
 
-# Blog post example:
-epoch_sayisi = 10000
+epoch_sayisi = 5
 momentum = 0.75 #temporary
-training_inputs_len = 2
-hidden_layer_inputs_len = [2,2]
-training_inputs = [0.05, 0.1]
-real_outputs = [0.01, 0.99]
-hidden_layer_weights=[[0.15, 0.2, 0.25, 0.3],[0.15, 0.2, 0.25, 0.3]]
-hidden_layer_bias=[0.35, 0.35]
+hidden_layer_inputs_len = [2]
+hidden_layer_weights= []
+hidden_layer_bias=[0.35]
 output_layer_bias=0.6
-output_layer_weights=[0.4, 0.45, 0.5, 0.55]
-nn = NeuralNetwork(2, [2,2], 2, hidden_layer_weights=hidden_layer_weights, hidden_layer_bias=hidden_layer_bias, output_layer_weights=output_layer_weights, output_layer_bias=output_layer_bias, choice_act=1, LEARNING_RATE=0.5, choice_wrt_weight_update = 3, momentum = momentum)
-for i in range(epoch_sayisi):
-    nn.train(training_inputs, real_outputs, nn.choice_act)
-    print(i, np.round(nn.calculate_total_error([[training_inputs, real_outputs]]), 9))
+output_layer_weights = [0.5,0.5,0.5,0.5,0.5,0.5]
+
+################## MENU ##############################
+print("Enter 1 for Iris Dataset, 2 for Seeds Dataset: ")
+add=int(input())
+if add == 1:
+    df = pd.read_csv('iris.csv', sep=';', header=None)
+else:
+    df = pd.read_csv('seeds_dataset.csv', sep=';', header=None)
+training_inputs_len = [df.shape[0] - 15, df.shape[1]]
+training_inputs = (df.loc[0:(df.shape[0] - 15), df.columns != df.shape[1] - 1]).as_matrix()
+train_outputs = (df.loc[0:(df.shape[0] - 15), df.columns == df.shape[1] - 1]).as_matrix()
+test_inputs = (df.loc[(df.shape[0] - 15):df.shape[0], df.columns != df.shape[1] - 1]).as_matrix()
+test_tmp_outputs = (df.loc[(df.shape[0] - 15):df.shape[0], df.columns == df.shape[1] - 1]).as_matrix()
+epoch_sayisi = int(input("Enter epoch count: "))
+print("Selection of Activation Function \n Enter 1 for Sigmoid, 2 for Tanh, 3 for ReLU: ")
+choice_act = int(input())
+print("Selection of Weight Update Function \n Enter 1 for Delta Bar, 2 for Adaptive Learning, 3 for Momentum: ")
+choice_wrt_weight_update = int(input())
+if choice_wrt_weight_update == 3:
+    momentum = float(input("Enter momentum value: "))
+hidden_layer_weights_len = [int(input("hidden layer neuron count: "))]
+hidden_layer_weights = [[0]* training_inputs.shape[1]*2]
+hidden_layer_bias = [float(input("Enter hidden layer bias value: "))]
+output_layer_bias = float(input("Enter output layer bias value: "))
+learning_rate = float(input("Enter Learning Rate: "))
+
+############### Train #################
+nn = NeuralNetwork(training_inputs.shape[1], [2], len(np.unique(train_outputs)), hidden_layer_weights=hidden_layer_weights, hidden_layer_bias=hidden_layer_bias, output_layer_weights=output_layer_weights, output_layer_bias=output_layer_bias, choice_act=choice_act, LEARNING_RATE=learning_rate, choice_wrt_weight_update = choice_wrt_weight_update, momentum = momentum)
+for j in range(epoch_sayisi):
+    for i in range(training_inputs.shape[0]):
+        real_outputs = [-1] * len(np.unique(train_outputs))
+        real_outputs[list(train_outputs[i])[0]-1] = 1
+        nn.train(list(training_inputs[i]), real_outputs, nn.choice_act)
+    if(j == epoch_sayisi-1 and i == df.shape[0]-15):
+        print("Error in last epoch for last value: "+ str(np.round(nn.calculate_total_error([[list(training_inputs[i]), real_outputs]]), 9)))
+print("output, target")
+for i in range(test_inputs.shape[0]):
+    test_outputs = [-1] * len(np.unique(train_outputs))
+    test_outputs[list(test_tmp_outputs[i])[0]-1] = 1
+    print(nn.test(list(test_inputs[i]), test_outputs), test_outputs.index(max(test_outputs)))

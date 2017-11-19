@@ -16,6 +16,9 @@ import pandas as pd
 #   http://en.wikipedia.org/wiki/Backpropagation#Finding_the_derivative_of_the_error
 # [2] Step by step Backpropagation Example
 #   https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
+#
+# [3] Fundamentals of Neural Networks - Laurene V. Fausett
+#
 
 class NeuralNetwork:
     #LEARNING_RATE = 0.5
@@ -306,7 +309,7 @@ class Neuron:
             if total_net_input > 0 :
                 return total_net_input
             else:
-                return 0
+                return 0.01
 
     # Determine how much the neuron's total input has to change to move closer to the expected output
     #
@@ -352,7 +355,7 @@ class Neuron:
             if self.output > 0:
                 return 1
             else:
-                return 0
+                return 0.01
 
     # The total net input is the weighted sum of all the inputs to the neuron and their respective weights:
     # = zⱼ = netⱼ = x₁w₁ + x₂w₂ ...
@@ -373,17 +376,18 @@ output_layer_bias=0.6
 output_layer_weights = [0.5,0.5,0.5,0.5,0.5,0.5]
 
 ################## MENU ##############################
+test = 15
 print("Enter 1 for Iris Dataset, 2 for Seeds Dataset: ")
 add=int(input())
 if add == 1:
     df = pd.read_csv('iris.csv', sep=';', header=None)
 else:
     df = pd.read_csv('seeds_dataset.csv', sep=';', header=None)
-training_inputs_len = [df.shape[0] - 15, df.shape[1]]
-training_inputs = (df.loc[0:(df.shape[0] - 15), df.columns != df.shape[1] - 1]).as_matrix()
-train_outputs = (df.loc[0:(df.shape[0] - 15), df.columns == df.shape[1] - 1]).as_matrix()
-test_inputs = (df.loc[(df.shape[0] - 15):df.shape[0], df.columns != df.shape[1] - 1]).as_matrix()
-test_tmp_outputs = (df.loc[(df.shape[0] - 15):df.shape[0], df.columns == df.shape[1] - 1]).as_matrix()
+training_inputs_len = [df.shape[0] - test, df.shape[1]]
+training_inputs = (df.loc[0:(df.shape[0] - test), df.columns != df.shape[1] - 1]).as_matrix()
+train_outputs = (df.loc[0:(df.shape[0] - test), df.columns == df.shape[1] - 1]).as_matrix()
+test_inputs = (df.loc[(df.shape[0] - test):df.shape[0], df.columns != df.shape[1] - 1]).as_matrix()
+test_tmp_outputs = (df.loc[(df.shape[0] - test):df.shape[0], df.columns == df.shape[1] - 1]).as_matrix()
 epoch_sayisi = int(input("Enter epoch count: "))
 print("Selection of Activation Function \n Enter 1 for Sigmoid, 2 for Tanh, 3 for ReLU: ")
 choice_act = int(input())
@@ -393,9 +397,10 @@ if choice_wrt_weight_update == 3:
     momentum = float(input("Enter momentum value: "))
 hidden_layer_weights_len = [int(input("hidden layer neuron count: "))]
 hidden_layer_weights = [[0]* training_inputs.shape[1]*2]
-hidden_layer_bias = [float(input("Enter hidden layer bias value: "))]
-output_layer_bias = float(input("Enter output layer bias value: "))
+hidden_layer_bias = [0.35]
+output_layer_bias = 0.6
 learning_rate = float(input("Enter Learning Rate: "))
+
 
 ############### Train #################
 nn = NeuralNetwork(training_inputs.shape[1], [2], len(np.unique(train_outputs)), hidden_layer_weights=hidden_layer_weights, hidden_layer_bias=hidden_layer_bias, output_layer_weights=output_layer_weights, output_layer_bias=output_layer_bias, choice_act=choice_act, LEARNING_RATE=learning_rate, choice_wrt_weight_update = choice_wrt_weight_update, momentum = momentum)
@@ -404,10 +409,15 @@ for j in range(epoch_sayisi):
         real_outputs = [-1] * len(np.unique(train_outputs))
         real_outputs[list(train_outputs[i])[0]-1] = 1
         nn.train(list(training_inputs[i]), real_outputs, nn.choice_act)
-    if(j == epoch_sayisi-1 and i == df.shape[0]-15):
+    if(j == epoch_sayisi-1 and i == df.shape[0]-test):
         print("Error in last epoch for last value: "+ str(np.round(nn.calculate_total_error([[list(training_inputs[i]), real_outputs]]), 9)))
 print("output, target")
+counter = 0
 for i in range(test_inputs.shape[0]):
     test_outputs = [-1] * len(np.unique(train_outputs))
     test_outputs[list(test_tmp_outputs[i])[0]-1] = 1
-    print(nn.test(list(test_inputs[i]), test_outputs), test_outputs.index(max(test_outputs)))
+    a = nn.test(list(test_inputs[i]), test_outputs)
+    print(a, test_outputs.index(max(test_outputs)))
+    if a == test_outputs.index(max(test_outputs)):
+        counter += 1
+print("Test Accuracy= "+ str(counter*100 / test_inputs.shape[0]))
